@@ -15,3 +15,26 @@ C正确。调用fork函数时，系统会进入内核态来执行相关的系统
 
 Thinking 4.3
 
+通过观察内存布局图发现，UTOP是用户空间可访问的最大地址(ULIM是用户空间最大地址，二者不同)。故duppage作用的地址空间肯定小于UTOP。
+同时，UTOP下面的一页是user exception stack，这是每个进程都独有的用户异常栈。在fork函数中，会为子进程申请一页作为user exception stack
+并且映射到子进程的页表中，故这一页不需要duppgae处理。所以，duppage保护的范围是到UTOP - BY2PG。
+
+Thinking 4.4
+
+(1)
+vpt和vpd在mmu中定义:
+extern volatile Pte* vpt[];
+extern volatile Pde* vpd[];
+
+vpt和vpd的值在user/entry.S中被定义为:
+vpt:
+  .word UVPT
+  .global vpd
+vpd:
+  .word (UVPT+(UVPT>>12)*4)
+  
+vpt的值被赋为存储UVPT值的地址，通过mmu.h中的内存布局图可知，UVPT是进程页表的起始地址。而vpd则是页目录的起始地址值的地址。
+所以，遍历vpd就相当于遍历页目录，同理，遍历vpt相当于遍历二级页表。
+vpd和vpt宏的使用方式: (*vpt)[N]就相当于UVPT[N],根据N值的不同即可遍历页目录项或二级页表项。
+
+(2)
